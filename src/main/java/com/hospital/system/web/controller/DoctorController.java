@@ -4,7 +4,6 @@ import com.hospital.system.domain.entity.Doctor;
 import com.hospital.system.exception.ResourceNotFoundException;
 import com.hospital.system.service.DoctorService;
 import com.hospital.system.web.dto.DoctorDTO;
-import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,7 +12,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/doctors")
-@Log4j2
+//@Api(value = "Gestion de doctores", description = "Operaciones pertinentes a los doctores en el hospital")
 public class DoctorController {
 
     final DoctorService doctorService;
@@ -23,6 +22,7 @@ public class DoctorController {
 
 
     @GetMapping
+    //@ApiOperation(value = "Obtiene la lista de todos los doctores", response = List.class)
     public ResponseEntity<List<Doctor>> getAllDoctors(){
         List<Doctor> doctors = doctorService.findAllDoctors();
 

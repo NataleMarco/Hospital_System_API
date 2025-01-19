@@ -1,7 +1,6 @@
 package com.hospital.system.service;
 
 import com.hospital.system.domain.entity.Appointment;
-import com.hospital.system.domain.entity.Doctor;
 import com.hospital.system.web.dto.AppointmentDTO;
 
 import java.util.List;
