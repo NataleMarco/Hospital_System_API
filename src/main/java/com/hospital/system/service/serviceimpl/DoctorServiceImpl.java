@@ -1,23 +1,32 @@
 package com.hospital.system.service.serviceimpl;
 
 import com.hospital.system.domain.entity.Doctor;
-import com.hospital.system.domain.repository.AppointmentRepository;
 import com.hospital.system.domain.repository.DoctorRepository;
+import com.hospital.system.exception.ResourceNotFoundException;
+import com.hospital.system.mapper.DoctorMapper;
 import com.hospital.system.service.DoctorService;
-import com.hospital.system.web.dto.DoctorDTO;
+import com.hospital.system.web.dto.request.DoctorRequestDTO;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class DoctorServiceImpl implements DoctorService {
 
     final DoctorRepository doctorRepository;
+    final DoctorMapper doctorMapper;
 
-    public DoctorServiceImpl (DoctorRepository doctorRepository) {
+
+    public DoctorServiceImpl (DoctorRepository doctorRepository,
+                              DoctorMapper doctorMapper) {
         this.doctorRepository = doctorRepository;
+        this.doctorMapper = doctorMapper;
+    }
+
+    public String resourceNotFoundMessage(UUID id){
+        return "Doctor with id: " + id + " not found!";
     }
 
     @Override
@@ -26,42 +35,41 @@ public class DoctorServiceImpl implements DoctorService {
          
     }
 
+
     @Override
-    public Optional<Doctor> findDoctorById(Long id) {
-        return doctorRepository.findById(id);
+    public Doctor findDoctorById(UUID id) {
+        return doctorRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(resourceNotFoundMessage(id)));
     }
 
     @Override
     @Transactional
-    public Doctor saveDoctor(DoctorDTO doctorDTO) {
-        Doctor doctor = convertFromDTO(doctorDTO);
+    public Doctor saveDoctor(DoctorRequestDTO doctorDTO) {
+        Doctor doctor = doctorMapper.toEntity(doctorDTO);
         return doctorRepository.save(doctor);
     }
 
     @Override
     @Transactional
-    public void deleteDoctor(Long id) {
+    public void deleteDoctor(UUID id) {
+
+        existsDoctorById(id);
         doctorRepository.deleteById(id);
     }
 
+
     @Override
     @Transactional
-    public Doctor updateDoctor(DoctorDTO doctorDTO, Long id) {
+    public Doctor updateDoctor(DoctorRequestDTO doctorRequestDTO, UUID id) {
+        existsDoctorById(id);
+        Doctor updatedDoctor = doctorMapper.toEntity(doctorRequestDTO);
+        updatedDoctor.setId(id);
 
-        findDoctorById(id).orElseThrow(() -> new RuntimeException("Doctor with id " + id + " not found ")) ;
-
-        Doctor doctor = convertFromDTO(doctorDTO);
-        doctor.setId(id);
-        doctorRepository.save(doctor);
-        return doctor;
+        return doctorRepository.save(updatedDoctor);
     }
 
-    private Doctor convertFromDTO(DoctorDTO dto){
-        Doctor doctor = new Doctor();
-        doctor.setName(dto.getName());
-        doctor.setPhone(dto.getPhone());
-        doctor.setEmail(dto.getEmail());
-        doctor.setSpecialty(dto.getSpecialty());
-        return doctor;
+    private void existsDoctorById(UUID id) {
+        if (!doctorRepository.existsById(id)) {
+            throw new ResourceNotFoundException(resourceNotFoundMessage(id));
+        }
     }
 }

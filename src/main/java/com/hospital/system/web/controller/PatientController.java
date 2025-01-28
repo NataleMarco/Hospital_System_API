@@ -1,15 +1,17 @@
 package com.hospital.system.web.controller;
 
 import com.hospital.system.domain.entity.Patient;
-import com.hospital.system.exception.ResourceNotFoundException;
+import com.hospital.system.mapper.PatientMapper;
 import com.hospital.system.service.PatientService;
-import com.hospital.system.web.dto.PatientDTO;
+import com.hospital.system.web.dto.request.PatientRequestDTO;
+import com.hospital.system.web.dto.response.PatientResponseDTO;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/patients")
@@ -17,44 +19,47 @@ import java.util.List;
 public class PatientController {
 
     final PatientService patientService;
+    final PatientMapper patientMapper;
 
-    public PatientController(PatientService patientService ) {
+    public PatientController(PatientService patientService,
+                             PatientMapper patientMapper) {
         this.patientService = patientService;
+        this.patientMapper = patientMapper;
     }
 
 
     @GetMapping
-    public ResponseEntity<List<Patient>> getAllPatients(){
+    public ResponseEntity<List<PatientResponseDTO>> getAllPatients(){
         List<Patient> patients = patientService.findAllPatients();
-        if(patients.isEmpty()){
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-        }
-        return new ResponseEntity<>(patients, HttpStatus.OK);
+        List<PatientResponseDTO> responsePatients = patientMapper.toResponseDTOs(patients);
+
+        return new ResponseEntity<>(responsePatients, HttpStatus.OK);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Patient> getPatientById(@PathVariable Long id){
-        Patient patient = patientService.findPatientById(id).orElseThrow(()-> new ResourceNotFoundException("Patient with id: " + id + " Not found"));
-        return new ResponseEntity<>(patient, HttpStatus.OK);
+    public ResponseEntity<PatientResponseDTO> getPatientById(@PathVariable UUID id){
+        Patient patient = patientService.findPatientById(id);
+        PatientResponseDTO patientResponseDTO = patientMapper.toResponseDTO(patient);
+
+        return new ResponseEntity<>(patientResponseDTO, HttpStatus.OK);
 
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Patient> deletePatientById(@PathVariable Long id){
-        Patient patient = patientService.findPatientById(id).orElseThrow(()-> new ResourceNotFoundException("Patient with id: " + id + " Not found"));
+    public ResponseEntity<PatientResponseDTO> deletePatientById(@PathVariable UUID id){
         patientService.deletePatient(id);
-        return new ResponseEntity<>(patient, HttpStatus.OK);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @PostMapping("")
-    public ResponseEntity<Patient> addPatient(@RequestBody PatientDTO dto){
-        Patient patient = patientService.createPatient(dto);
+    public ResponseEntity<Patient> addPatient(@RequestBody PatientRequestDTO patientRequestDTO){
+        Patient patient = patientService.createPatient(patientRequestDTO);
         return new ResponseEntity<>(patient, HttpStatus.CREATED);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Patient> updatePatient(@RequestBody PatientDTO dto, @PathVariable Long id){
-        Patient patient = patientService.updatePatient(dto,id);
+    @PutMapping("/{patientId}")
+    public ResponseEntity<Patient> updatePatient(@RequestBody PatientRequestDTO patientRequestDTO, @PathVariable UUID patientId){
+        Patient patient = patientService.updatePatient(patientRequestDTO, patientId);
         return new ResponseEntity<>(patient, HttpStatus.OK);
     }
 }

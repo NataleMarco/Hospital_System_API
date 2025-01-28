@@ -1,12 +1,10 @@
 package com.hospital.system.service.serviceimpl;
 
-import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.*;
-
 import com.hospital.system.domain.entity.Doctor;
 import com.hospital.system.domain.repository.DoctorRepository;
-import com.hospital.system.web.dto.DoctorDTO;
+import com.hospital.system.exception.ResourceNotFoundException;
 
+import com.hospital.system.web.dto.request.DoctorRequestDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,9 +12,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class DoctorServiceImplTest {
@@ -27,88 +26,219 @@ class DoctorServiceImplTest {
     @InjectMocks
     private DoctorServiceImpl doctorService;
 
-    private Doctor doctor;
-    private DoctorDTO doctorDTO;
+    private Doctor existingDoctor1;
+    private Doctor existingDoctor2;
+    private DoctorRequestDTO validDoctorDTO;
 
     @BeforeEach
     void setUp() {
-        // Initialize your test data
-        doctorDTO = new DoctorDTO();
-        doctorDTO.setName("John Doe");
-        doctorDTO.setPhone("1234567890");
-        doctorDTO.setEmail("john.doe@example.com");
-        doctorDTO.setSpecialty("Cardiology");
+        existingDoctor1 = new Doctor(
+                UUID.randomUUID(),
+                "Dr. John Doe",
+                "Cardiology",
+                "1234567890",
+                "johndoe@example.com",
+                12345678L
+        );
 
-        doctor = new Doctor();
-        doctor.setName(doctorDTO.getName());
-        doctor.setPhone(doctorDTO.getPhone());
-        doctor.setEmail(doctorDTO.getEmail());
-        doctor.setSpecialty(doctorDTO.getSpecialty());
+        existingDoctor2 = new Doctor(
+                UUID.randomUUID(),
+                "Dr. Jane Smith",
+                "Neurology",
+                "0987654321",
+                "janesmith@example.com",
+                87654321L
+        );
+
+        validDoctorDTO = new DoctorRequestDTO(
+                "Dr. Alice Brown",
+                "Pediatrics",
+                "1122334455",
+                "alicebrown@example.com",
+                11223344L
+        );
+    }
+
+    // 1. Tests for findAllDoctors()
+
+    @Test
+    void findAllDoctors_whenDoctorsExist_ReturnsListOfDoctors() {
+        List<Doctor> doctors = Arrays.asList(existingDoctor1, existingDoctor2);
+        when(doctorRepository.findAll()).thenReturn(doctors);
+
+        List<Doctor> result = doctorService.findAllDoctors();
+
+        assertEquals(2, result.size(), "Should return two doctors");
+        assertTrue(result.contains(existingDoctor1), "Result should contain existingDoctor1");
+        assertTrue(result.contains(existingDoctor2), "Result should contain existingDoctor2");
+        verify(doctorRepository, times(1)).findAll();
     }
 
     @Test
-    void testFindAllDoctors() {
-        // Setup mock behavior
-        when(doctorRepository.findAll()).thenReturn(Collections.singletonList(doctor));
+    void findAllDoctors_whenNoDoctorsExist_ReturnsEmptyList() {
+        when(doctorRepository.findAll()).thenReturn(Collections.emptyList());
 
-        // Call the method to test
-        List<Doctor> doctors = doctorService.findAllDoctors();
+        List<Doctor> result = doctorService.findAllDoctors();
 
-        // Assertions
-        assertNotNull(doctors);
-        assertFalse(doctors.isEmpty());
-        assertEquals(1, doctors.size());
-        assertEquals("John Doe", doctors.get(0).getName());
+        assertTrue(result.isEmpty(), "Result should be an empty list");
+        verify(doctorRepository, times(1)).findAll();
     }
 
     @Test
-    void testFindDoctorById() {
-        // Setup mock behavior
-        when(doctorRepository.findById(anyLong())).thenReturn(Optional.of(doctor));
+    void findAllDoctors_whenRepositoryThrowsException_ThrowsRuntimeException() {
+        when(doctorRepository.findAll()).thenThrow(new RuntimeException("Database error"));
 
-        // Call the method to test
-        Optional<Doctor> result = doctorService.findDoctorById(1L);
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            doctorService.findAllDoctors();
+        }, "Should throw RuntimeException when repository fails");
 
-        // Assertions
-        assertTrue(result.isPresent());
-        assertEquals("John Doe", result.get().getName());
+        assertEquals("Database error", exception.getMessage(), "Exception message should match");
+        verify(doctorRepository, times(1)).findAll();
+    }
+
+    // 2. Tests for findDoctorById(UUID id)
+
+    @Test
+    void findDoctorById_whenDoctorExists_ReturnsDoctor() {
+        UUID id = existingDoctor1.getId();
+        when(doctorRepository.findById(id)).thenReturn(Optional.of(existingDoctor1));
+
+        Doctor resultDoctor = doctorService.findDoctorById(id);
+
+        assertEquals(existingDoctor1, resultDoctor, "Returned doctor should match existingDoctor1");
+        verify(doctorRepository, times(1)).findById(id);
     }
 
     @Test
-    void testSaveDoctor() {
-        // Setup mock behavior
-        when(doctorRepository.save(any(Doctor.class))).thenReturn(doctor);
+    void findDoctorById_whenDoctorDoesNotExist_throwsException() {
+        UUID id = UUID.randomUUID();
+        when(doctorRepository.findById(id)).thenReturn(Optional.empty());
 
-        // Call the method to test
-        Doctor savedDoctor = doctorService.saveDoctor(doctorDTO);
-
-        // Assertions
-        assertNotNull(savedDoctor);
-        assertEquals("John Doe", savedDoctor.getName());
+        assertThrows(ResourceNotFoundException.class,()-> doctorService.findDoctorById(id), "Should throw ResourceNotFoundException");
+        verify(doctorRepository, times(1)).findById(id);
     }
 
     @Test
-    void testDeleteDoctor() {
-        // Setup mock to do nothing
-        doNothing().when(doctorRepository).deleteById(anyLong());
+    void findDoctorById_whenRepositoryThrowsException_ThrowsRuntimeException() {
+        UUID id = existingDoctor1.getId();
+        when(doctorRepository.findById(id)).thenThrow(new RuntimeException("Database error"));
 
-        // Call the method to test
-        doctorService.deleteDoctor(1L);
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            doctorService.findDoctorById(id);
+        }, "Should throw RuntimeException when repository fails");
 
-        // Verify the interaction with the mock
-        verify(doctorRepository).deleteById(1L);
+        assertEquals("Database error", exception.getMessage(), "Exception message should match");
+        verify(doctorRepository, times(1)).findById(id);
+    }
+
+    // 3. Tests for saveDoctor(DoctorDTO doctorDTO)
+
+    @Test
+    void saveDoctor_whenValidDoctorDTO_ReturnsSavedDoctor() {
+        Doctor doctorToSave = new Doctor();
+        doctorToSave.setName(validDoctorDTO.getName());
+        doctorToSave.setSpecialty(validDoctorDTO.getSpecialty());
+        doctorToSave.setPhone(validDoctorDTO.getPhone());
+        doctorToSave.setEmail(validDoctorDTO.getEmail());
+        doctorToSave.setDNI(validDoctorDTO.getDni());
+
+        Doctor savedDoctor = new Doctor(
+                UUID.randomUUID(),
+                validDoctorDTO.getName(),
+                validDoctorDTO.getSpecialty(),
+                validDoctorDTO.getPhone(),
+                validDoctorDTO.getEmail(),
+                validDoctorDTO.getDni()
+        );
+
+        when(doctorRepository.save(any(Doctor.class))).thenReturn(savedDoctor);
+
+        Doctor result = doctorService.saveDoctor(validDoctorDTO);
+
+        assertNotNull(result.getId(), "Saved doctor should have an ID");
+        assertEquals(validDoctorDTO.getName(), result.getName(), "Names should match");
+        assertEquals(validDoctorDTO.getSpecialty(), result.getSpecialty(), "Specialties should match");
+        assertEquals(validDoctorDTO.getPhone(), result.getPhone(), "Phones should match");
+        assertEquals(validDoctorDTO.getEmail(), result.getEmail(), "Emails should match");
+        assertEquals(validDoctorDTO.getDni(), result.getDNI(), "DNIs should match");
+
+        verify(doctorRepository, times(1)).save(any(Doctor.class));
     }
 
     @Test
-    void testUpdateDoctor() {
-        // Setup mock behavior
-        when(doctorRepository.findById(anyLong())).thenReturn(Optional.of(doctor));
-        when(doctorRepository.save(any(Doctor.class))).thenReturn(doctor);
+    void saveDoctor_whenRepositoryThrowsException_ThrowsRuntimeException() {
+        when(doctorRepository.save(any(Doctor.class))).thenThrow(new RuntimeException("Database error"));
 
-        // Call the method to test
-        Doctor updatedDoctor = doctorService.updateDoctor(doctorDTO, 1L);
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            doctorService.saveDoctor(validDoctorDTO);
+        }, "Should throw RuntimeException when repository fails during save");
 
-        // Assertions
-        assertEquals("John Doe", updatedDoctor.getName());
+        assertEquals("Database error", exception.getMessage(), "Exception message should match");
+        verify(doctorRepository, times(1)).save(any(Doctor.class));
     }
+
+    // 4. Tests for deleteDoctor(UUID id)
+
+    @Test
+    void deleteDoctor_whenDoctorExists_DeletesDoctor() {
+        UUID id = existingDoctor1.getId();
+        doNothing().when(doctorRepository).deleteById(id);
+        when(doctorRepository.existsById(id)).thenReturn(true);
+
+        assertDoesNotThrow(() -> doctorService.deleteDoctor(id), "Deleting existing doctor should not throw exception");
+
+        verify(doctorRepository, times(1)).deleteById(id);
+    }
+
+    @Test
+    void deleteDoctor_whenDoctorDoesNotExist_thenThrowsException() {
+        UUID id = UUID.randomUUID();
+        when(doctorRepository.existsById(id)).thenReturn(false);
+        assertThrows(ResourceNotFoundException.class, ()-> doctorService.deleteDoctor(id));
+
+        verify(doctorRepository, times(0)).deleteById(id);
+    }
+
+    // 5. Tests for updateDoctor(DoctorDTO doctorDTO, UUID id)
+
+    @Test
+    void updateDoctor_whenDoctorExists_ReturnsUpdatedDoctor() {
+        UUID id = existingDoctor1.getId();
+        when(doctorRepository.existsById(id)).thenReturn(true);
+
+        Doctor updatedDoctor = new Doctor(
+                id,
+                validDoctorDTO.getName(),
+                validDoctorDTO.getSpecialty(),
+                validDoctorDTO.getPhone(),
+                validDoctorDTO.getEmail(),
+                validDoctorDTO.getDni()
+        );
+
+        when(doctorRepository.save(any(Doctor.class))).thenReturn(updatedDoctor);
+
+        Doctor result = doctorService.updateDoctor(validDoctorDTO, id);
+
+        assertEquals(id, result.getId(), "IDs should match");
+        assertEquals(validDoctorDTO.getName(), result.getName(), "Names should match");
+        assertEquals(validDoctorDTO.getSpecialty(), result.getSpecialty(), "Specialties should match");
+        assertEquals(validDoctorDTO.getPhone(), result.getPhone(), "Phones should match");
+        assertEquals(validDoctorDTO.getEmail(), result.getEmail(), "Emails should match");
+        assertEquals(validDoctorDTO.getDni(), result.getDNI(), "DNIs should match");
+
+        verify(doctorRepository, times(1)).save(any(Doctor.class));
+    }
+
+    @Test
+    void updateDoctor_whenDoctorDoesNotExist_thenThrowsException() {
+        UUID id = UUID.randomUUID();
+        when(doctorRepository.existsById(id)).thenReturn(false);
+
+        assertThrows(ResourceNotFoundException.class, ()-> doctorService.updateDoctor(validDoctorDTO, id));
+
+        verify(doctorRepository, times(1)).existsById(id);
+        verify(doctorRepository, times(0)).save(any(Doctor.class));
+    }
+
 }
+

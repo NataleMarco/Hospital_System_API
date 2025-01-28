@@ -3,20 +3,29 @@ package com.hospital.system.service.serviceimpl;
 import com.hospital.system.domain.entity.Patient;
 import com.hospital.system.domain.repository.PatientRepository;
 import com.hospital.system.exception.ResourceNotFoundException;
+import com.hospital.system.mapper.PatientMapper;
 import com.hospital.system.service.PatientService;
-import com.hospital.system.web.dto.PatientDTO;
+import com.hospital.system.web.dto.request.PatientRequestDTO;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class PatientServiceImpl implements PatientService {
 
     final PatientRepository patientRepository;
-    public PatientServiceImpl(PatientRepository patientRepository) {
+    final PatientMapper patientMapper;
+
+    public PatientServiceImpl(PatientRepository patientRepository,
+                              PatientMapper patientMapper) {
         this.patientRepository = patientRepository;
+        this.patientMapper = patientMapper;
+    }
+
+    private String resourceNotFoundMessage(UUID id){
+        return "Patient with id: " + id + " not found!";
     }
 
     @Override
@@ -25,43 +34,38 @@ public class PatientServiceImpl implements PatientService {
     }
 
     @Override
-    public Optional<Patient> findPatientById(Long id) {
-        return patientRepository.findById(id);
+    public Patient findPatientById(UUID id) {
+        return patientRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(resourceNotFoundMessage(id)));
+    }
+
+    public void existsPatientById(UUID id) {
+        if(!patientRepository.existsById(id)){
+            throw new ResourceNotFoundException(resourceNotFoundMessage(id));
+        }
     }
 
     @Override
     @Transactional
-    public Patient createPatient(PatientDTO patientDTO) {
-        Patient patient = convertFromDTO(patientDTO);
+    public Patient createPatient(PatientRequestDTO patientRequestDTO) {
+        Patient patient = patientMapper.toEntity(patientRequestDTO);
         patientRepository.save(patient);
         return patient;
     }
 
     @Override
     @Transactional
-    public void deletePatient(Long id) {
+    public void deletePatient(UUID id) {
+        existsPatientById(id);
         patientRepository.deleteById(id);
     }
 
     @Override
     @Transactional
-    public Patient updatePatient(PatientDTO patientDTO, Long id) {
+    public Patient updatePatient(PatientRequestDTO patientRequestDTO, UUID id) {
 
-        patientRepository.findById(id).orElseThrow(()-> new ResourceNotFoundException("Patient with id: " + id + " Not found"));
-
-        Patient patient = convertFromDTO(patientDTO);
-        patient.setId(id);
-        patientRepository.save(patient);
-        return patient;
-    }
-
-    private Patient convertFromDTO(PatientDTO patientDTO) {
-        Patient patient = new Patient();
-        patient.setAddress(patientDTO.getAddress());
-        patient.setPhone(patientDTO.getPhone());
-        patient.setName(patientDTO.getName());
-        patient.setDateOfBirth(patientDTO.getDateOfBirth());
-        patient.setEmail(patientDTO.getEmail());
-        return patient;
+        existsPatientById(id);
+        Patient updatedPatient = patientMapper.toEntity(patientRequestDTO);
+        updatedPatient.setId(id);
+        return patientRepository.save(updatedPatient);
     }
 }

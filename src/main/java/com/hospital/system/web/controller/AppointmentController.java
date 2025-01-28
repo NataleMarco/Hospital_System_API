@@ -1,14 +1,15 @@
 package com.hospital.system.web.controller;
 
 import com.hospital.system.domain.entity.Appointment;
-import com.hospital.system.exception.ResourceNotFoundException;
 import com.hospital.system.service.AppointmentService;
-import com.hospital.system.web.dto.AppointmentDTO;
+import com.hospital.system.web.dto.request.AppointmentRequestDTO;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/appointments")
@@ -22,39 +23,34 @@ public class AppointmentController {
     @GetMapping()
     public ResponseEntity<List<Appointment>> findAll(){
         List<Appointment> appointments = appointmentService.findAllAppointments();
-        if(!appointments.isEmpty()){
-            return new ResponseEntity<>(appointments, HttpStatus.OK);
-        }
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        return new ResponseEntity<>(appointments, HttpStatus.OK);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Appointment> findById(@PathVariable Long id){
-
-        Appointment appointment = appointmentService.findAppointmentById(id).orElseThrow(()->new ResourceNotFoundException("Appointment with id: " + id + " Not Found"));
-
+    public ResponseEntity<Appointment> findById(@PathVariable UUID id){
+        Appointment appointment = appointmentService.findAppointmentById(id);
         return new ResponseEntity<>(appointment, HttpStatus.OK);
     }
 
     @PostMapping
-    public ResponseEntity<Appointment> createAppointment(@RequestBody AppointmentDTO appointmentDTO){
+    public ResponseEntity<Appointment> createAppointment(@Valid @RequestBody AppointmentRequestDTO appointmentDTO){
         Appointment appointment = appointmentService.saveAppointment(appointmentDTO);
         return new  ResponseEntity<>(appointment, HttpStatus.CREATED);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Appointment> deleteAppointment(@PathVariable Long id){
+    public ResponseEntity<Appointment> deleteAppointment(@PathVariable UUID id){
 
-        Appointment appointment = appointmentService.findAppointmentById(id).orElseThrow(() -> new ResourceNotFoundException("Appointment with id: " + id + " Not found"));
+        Appointment appointment = appointmentService.findAppointmentById(id);
         appointmentService.deleteAppointment(id);
 
         return new ResponseEntity<>(appointment, HttpStatus.OK);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Appointment> updateAppointment(@PathVariable Long id, @RequestBody AppointmentDTO appointmentDTO){
+    @PutMapping("/{appointmentId}")
+    public ResponseEntity<Appointment> updateAppointment( @Valid @RequestBody AppointmentRequestDTO appointmentRequestDTO,@PathVariable UUID appointmentId ){
 
-        Appointment appointment = appointmentService.updateAppointment(appointmentDTO, id);
+        Appointment appointment = appointmentService.updateAppointment(appointmentRequestDTO, appointmentId);
         return new ResponseEntity<>(appointment, HttpStatus.OK);
 
     }
