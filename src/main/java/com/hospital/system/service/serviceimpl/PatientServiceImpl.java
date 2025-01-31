@@ -1,13 +1,15 @@
 package com.hospital.system.service.serviceimpl;
 
 import com.hospital.system.domain.entity.Patient;
+import com.hospital.system.domain.repository.AppointmentRepository;
 import com.hospital.system.domain.repository.PatientRepository;
-import com.hospital.system.exception.ResourceNotFoundException;
+import com.hospital.system.exception.PatientAssociatedAppointmentsException;
+import com.hospital.system.exception.PatientNotFoundException;
 import com.hospital.system.mapper.PatientMapper;
 import com.hospital.system.service.PatientService;
 import com.hospital.system.web.dto.request.PatientRequestDTO;
-import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -17,15 +19,14 @@ public class PatientServiceImpl implements PatientService {
 
     final PatientRepository patientRepository;
     final PatientMapper patientMapper;
+    final AppointmentRepository appointmentRepository;
 
     public PatientServiceImpl(PatientRepository patientRepository,
+                              AppointmentRepository appointmentRepository,
                               PatientMapper patientMapper) {
+        this.appointmentRepository = appointmentRepository;
         this.patientRepository = patientRepository;
         this.patientMapper = patientMapper;
-    }
-
-    private String resourceNotFoundMessage(UUID id){
-        return "Patient with id: " + id + " not found!";
     }
 
     @Override
@@ -34,14 +35,9 @@ public class PatientServiceImpl implements PatientService {
     }
 
     @Override
-    public Patient findPatientById(UUID id) {
-        return patientRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(resourceNotFoundMessage(id)));
-    }
-
-    public void existsPatientById(UUID id) {
-        if(!patientRepository.existsById(id)){
-            throw new ResourceNotFoundException(resourceNotFoundMessage(id));
-        }
+    public Patient findPatientById(UUID patientId) {
+        return patientRepository.findById(patientId)
+                .orElseThrow(() -> new PatientNotFoundException(patientId));
     }
 
     @Override
@@ -56,16 +52,24 @@ public class PatientServiceImpl implements PatientService {
     @Transactional
     public void deletePatient(UUID id) {
         existsPatientById(id);
+        if(appointmentRepository.existsAppoitmentByPatientId(id)){
+            throw new PatientAssociatedAppointmentsException(id);
+        }
         patientRepository.deleteById(id);
     }
 
     @Override
     @Transactional
     public Patient updatePatient(PatientRequestDTO patientRequestDTO, UUID id) {
-
         existsPatientById(id);
         Patient updatedPatient = patientMapper.toEntity(patientRequestDTO);
         updatedPatient.setId(id);
         return patientRepository.save(updatedPatient);
+    }
+
+    private void existsPatientById(UUID patientId) {
+        if(!patientRepository.existsById(patientId)){
+            throw new PatientNotFoundException(patientId);
+        }
     }
 }

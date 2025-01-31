@@ -4,7 +4,11 @@ import com.hospital.system.domain.entity.Appointment;
 import com.hospital.system.domain.entity.Doctor;
 import com.hospital.system.domain.entity.Patient;
 import com.hospital.system.domain.repository.AppointmentRepository;
+import com.hospital.system.exception.AppointmentNotFoundException;
+import com.hospital.system.exception.DoctorAssociatedAppointmentsException;
+import com.hospital.system.exception.PatientAssociatedAppointmentsException;
 import com.hospital.system.exception.ResourceNotFoundException;
+import com.hospital.system.mapper.AppointmentMapperImpl;
 import com.hospital.system.service.DoctorService;
 import com.hospital.system.service.PatientService;
 
@@ -29,6 +33,9 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AppointmentServiceImplTest {
 
+
+    @Mock
+    private AppointmentMapperImpl appointmentMapper;
 
     @Mock
     private AppointmentRepository appointmentRepository;
@@ -77,6 +84,14 @@ class AppointmentServiceImplTest {
                 existingPatient1,
                 existingDoctor1,
                 LocalDateTime.of(2025, 3, 10, 10, 30),
+                "Routine check-up and blood pressure monitoring."
+        );
+
+        appointment2 = new Appointment(
+                UUID.randomUUID(),
+                existingPatient1,
+                existingDoctor1,
+                LocalDateTime.of(2025, 2, 10, 10, 30),
                 "Routine check-up and blood pressure monitoring."
         );
 
@@ -131,7 +146,7 @@ class AppointmentServiceImplTest {
         UUID appointmentId = UUID.randomUUID();
         when(appointmentRepository.findById(appointmentId)).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, () -> appointmentService.findAppointmentById(appointmentId));
+        assertThrows(AppointmentNotFoundException.class, () -> appointmentService.findAppointmentById(appointmentId));
 
         verify(appointmentRepository, times(1)).findById(appointmentId);
 
@@ -141,13 +156,11 @@ class AppointmentServiceImplTest {
     @Test
     @DisplayName("saveAppointment_whenValidDTO_ReturnsSavedAppointment")
     void saveAppointment_whenValidDTO_ReturnsSavedAppointment() {
-        when(doctorService.findDoctorById(appointmentDTO.getDoctorId())).thenReturn(existingDoctor1);
         when(patientService.findPatientById(appointmentDTO.getPatientId())).thenReturn(existingPatient1);
-
         when(appointmentRepository.save(any(Appointment.class))).thenReturn(appointment1);
+        when(appointmentMapper.toEntity(any())).thenReturn(appointment1);
         Appointment savedAppointment = appointmentService.saveAppointment(appointmentDTO);
         assertNotNull(savedAppointment, "Appointment should exist");
-        verify(appointmentRepository).save(any(Appointment.class));
 
     }
 
@@ -162,7 +175,6 @@ class AppointmentServiceImplTest {
     @Test
     @DisplayName("saveAppointment_whenPatientDoesNotExist_ThrowsIllegalArgumentException")
     void saveAppointment_whenPatientDoesNotExist_ThrowsIllegalArgumentException() {
-        when(doctorService.findDoctorById(appointmentDTO.getDoctorId())).thenReturn(existingDoctor1);
         when(patientService.findPatientById(appointmentDTO.getPatientId())).thenThrow(ResourceNotFoundException.class);
         assertThrows(ResourceNotFoundException.class, () -> appointmentService.saveAppointment(appointmentDTO));
         verify(appointmentRepository, never()).save(any(Appointment.class));
@@ -186,7 +198,7 @@ class AppointmentServiceImplTest {
 
         UUID appointmentId = UUID.randomUUID();
         when(appointmentRepository.existsById(appointmentId)).thenReturn(false);
-        assertThrows(ResourceNotFoundException.class, () -> appointmentService.deleteAppointment(appointmentId));
+        assertThrows(AppointmentNotFoundException.class, () -> appointmentService.deleteAppointment(appointmentId));
 
     }
 
@@ -196,11 +208,9 @@ class AppointmentServiceImplTest {
     @DisplayName("updateAppointment_whenValidDTOAndAppointmentExists_ReturnsUpdatedAppointment")
     void updateAppointment_whenValidDTOAndAppointmentExists_ReturnsUpdatedAppointment() {
         UUID appointmentId = appointment1.getId();
+        when(appointmentRepository.existsById(appointmentId)).thenReturn(true);
+        when(appointmentMapper.toEntity(any())).thenReturn(appointment1);
 
-        when(doctorService.findDoctorById(appointmentDTO.getDoctorId())).thenReturn(existingDoctor1);
-        when(patientService.findPatientById(appointmentDTO.getPatientId())).thenReturn(existingPatient1);
-
-        when(appointmentRepository.findById(appointmentId)).thenReturn(Optional.of(appointment1));
         when(appointmentRepository.save(any(Appointment.class))).thenReturn(appointment1);
         Appointment appointment = appointmentService.updateAppointment(appointmentDTO, appointmentId);
 
@@ -212,9 +222,8 @@ class AppointmentServiceImplTest {
     @DisplayName("updateAppointment_whenAppointmentDoesNotExist_ThrowsResourceNotFoundException")
     void updateAppointment_whenAppointmentDoesNotExist_ThrowsResourceNotFoundException() {
         UUID appointmentId = appointment1.getId();
-
-        when(appointmentRepository.findById(appointmentId)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class, () -> appointmentService.updateAppointment(appointmentDTO,appointmentId));
+        when(appointmentRepository.existsById(appointmentId)).thenReturn(false);
+        assertThrows(AppointmentNotFoundException.class, () -> appointmentService.updateAppointment(appointmentDTO,appointmentId));
 
 
     }
@@ -222,21 +231,43 @@ class AppointmentServiceImplTest {
     @Test
     @DisplayName("updateAppointment_whenDoctorDoesNotExist_ThrowsResourceNotFoundException")
     void updateAppointment_whenDoctorDoesNotExist_ThrowsResourceNotFoundException() {
-        UUID appointmentId = appointment1.getId();
-        when(doctorService.findDoctorById(appointmentDTO.getDoctorId())).thenThrow(ResourceNotFoundException.class);
-        when(appointmentRepository.findById(appointmentId)).thenReturn(Optional.of(appointment1));
+        UUID appointmentId = UUID.randomUUID();
+
+        when(appointmentRepository.existsById(appointmentId)).thenReturn(true);
+        when(patientService.findPatientById(existingPatient1.getId())).thenReturn(existingPatient1);
+        when(doctorService.findDoctorById(existingDoctor1.getId())).thenThrow(new ResourceNotFoundException("Doctor not found"));
         assertThrows(ResourceNotFoundException.class ,() -> appointmentService.updateAppointment(appointmentDTO, appointmentId));
+
+        verify(doctorService).findDoctorById(existingDoctor1.getId());
+        verify(appointmentRepository, never()).save(any(Appointment.class));
     }
 
     @Test
-    @DisplayName("updateAppointment_whenPatientDoesNotExist_ThrowsResourceNotFoundException")
-    void updateAppointment_whenPatientDoesNotExist_ThrowsResourceNotFoundException() {
+    void existsAppointmentByDoctorId_whenDoctorExists_doNothing() {
+        UUID doctorId = UUID.randomUUID();
+        when(appointmentRepository.existsAppoitmentByDoctorId(doctorId)).thenReturn(false);
+        assertDoesNotThrow(() -> appointmentService.existAppointmentByDoctorId(doctorId));
+    }
 
-        UUID appointmentId = appointment1.getId();
-        when(doctorService.findDoctorById(appointmentDTO.getDoctorId())).thenReturn(existingDoctor1);
-        when(patientService.findPatientById(appointmentDTO.getPatientId())).thenThrow(ResourceNotFoundException.class);
-        when(appointmentRepository.findById(appointmentId)).thenReturn(Optional.of(appointment1));
-        assertThrows(ResourceNotFoundException.class ,() -> appointmentService.updateAppointment(appointmentDTO, appointmentId));
+    @Test
+    void existsAppointmentByDoctorId_whenDoctorDoesNotExist_thenThrowException() {
+        UUID doctorId = UUID.randomUUID();
+        when(appointmentRepository.existsAppoitmentByDoctorId(doctorId)).thenReturn(true);
+        assertThrows(DoctorAssociatedAppointmentsException.class, () -> appointmentService.existAppointmentByDoctorId(doctorId));
+    }
 
+    @Test
+    void existsAppointmentByPatientId_whenPatientExists_doNothing() {
+
+        UUID  patientId = UUID.randomUUID();
+        when(appointmentRepository.existsAppoitmentByDoctorId(patientId)).thenReturn(false);
+        assertDoesNotThrow(() -> appointmentService.existAppointmentByDoctorId(patientId));
+    }
+
+    @Test
+    void existsAppointmentByPatientId_whenPatientDoesNotExist_thenThrowException() {
+        UUID patientId = UUID.randomUUID();
+        when(appointmentRepository.existsAppoitmentByPatientId(patientId)).thenReturn(true);
+        assertThrows(PatientAssociatedAppointmentsException.class, () -> appointmentService.existAppointmentByPatientId(patientId));
     }
 }

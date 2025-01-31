@@ -13,5 +13,7 @@ public interface AppointmentService {
     Appointment saveAppointment (@Valid AppointmentRequestDTO appointmentDTO);
     void deleteAppointment(UUID id);
     Appointment updateAppointment(AppointmentRequestDTO appointmentRequestDTO, UUID id);
+    void existAppointmentByDoctorId(UUID doctorId);
+    void existAppointmentByPatientId(UUID patientId);
 
 }

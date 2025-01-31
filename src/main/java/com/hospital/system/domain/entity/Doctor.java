@@ -34,5 +34,5 @@ public class Doctor {
     private String email;
 
     @Column(nullable = false, unique = true)
-    private Long DNI;
+    private Long dni;
 }

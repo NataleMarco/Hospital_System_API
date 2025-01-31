@@ -24,18 +24,13 @@ public class DoctorController {
 
     @GetMapping
     //@ApiOperation(value = "Obtiene la lista de todos los doctores", response = List.class)
-    public ResponseEntity<List<Doctor>> getAllDoctors(){
+    public ResponseEntity<List<Doctor>> findAll(){
         List<Doctor> doctors = doctorService.findAllDoctors();
-
-        if(doctors.isEmpty()){
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-        }
-
         return new ResponseEntity<>(doctors, HttpStatus.OK);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Doctor> getDoctorById(@PathVariable UUID id){
+    public ResponseEntity<Doctor> findDoctorById(@PathVariable UUID id){
 
         Doctor doctor = doctorService.findDoctorById(id);
 

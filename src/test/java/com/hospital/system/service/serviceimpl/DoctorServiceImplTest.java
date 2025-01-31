@@ -1,9 +1,13 @@
 package com.hospital.system.service.serviceimpl;
 
 import com.hospital.system.domain.entity.Doctor;
+import com.hospital.system.domain.repository.AppointmentRepository;
 import com.hospital.system.domain.repository.DoctorRepository;
-import com.hospital.system.exception.ResourceNotFoundException;
+import com.hospital.system.exception.DoctorNotFoundException;
 
+import com.hospital.system.exception.PatientAssociatedAppointmentsException;
+import com.hospital.system.mapper.DoctorMapperImpl;
+import com.hospital.system.service.AppointmentService;
 import com.hospital.system.web.dto.request.DoctorRequestDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,7 +25,13 @@ import static org.mockito.Mockito.*;
 class DoctorServiceImplTest {
 
     @Mock
+    private DoctorMapperImpl doctorMapper;
+
+    @Mock
     private DoctorRepository doctorRepository;
+
+    @Mock
+    private AppointmentRepository appointmentRepository;
 
     @InjectMocks
     private DoctorServiceImpl doctorService;
@@ -59,7 +69,7 @@ class DoctorServiceImplTest {
         );
     }
 
-    // 1. Tests for findAllDoctors()
+    // 1. Tests for findAll()
 
     @Test
     void findAllDoctors_whenDoctorsExist_ReturnsListOfDoctors() {
@@ -114,7 +124,7 @@ class DoctorServiceImplTest {
         UUID id = UUID.randomUUID();
         when(doctorRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class,()-> doctorService.findDoctorById(id), "Should throw ResourceNotFoundException");
+        assertThrows(DoctorNotFoundException.class,()-> doctorService.findDoctorById(id), "Should throw ResourceNotFoundException");
         verify(doctorRepository, times(1)).findById(id);
     }
 
@@ -140,7 +150,7 @@ class DoctorServiceImplTest {
         doctorToSave.setSpecialty(validDoctorDTO.getSpecialty());
         doctorToSave.setPhone(validDoctorDTO.getPhone());
         doctorToSave.setEmail(validDoctorDTO.getEmail());
-        doctorToSave.setDNI(validDoctorDTO.getDni());
+        doctorToSave.setDni(validDoctorDTO.getDni());
 
         Doctor savedDoctor = new Doctor(
                 UUID.randomUUID(),
@@ -152,6 +162,8 @@ class DoctorServiceImplTest {
         );
 
         when(doctorRepository.save(any(Doctor.class))).thenReturn(savedDoctor);
+        when(doctorMapper.toEntity(any(DoctorRequestDTO.class))).thenReturn(doctorToSave);
+
 
         Doctor result = doctorService.saveDoctor(validDoctorDTO);
 
@@ -160,7 +172,7 @@ class DoctorServiceImplTest {
         assertEquals(validDoctorDTO.getSpecialty(), result.getSpecialty(), "Specialties should match");
         assertEquals(validDoctorDTO.getPhone(), result.getPhone(), "Phones should match");
         assertEquals(validDoctorDTO.getEmail(), result.getEmail(), "Emails should match");
-        assertEquals(validDoctorDTO.getDni(), result.getDNI(), "DNIs should match");
+        assertEquals(validDoctorDTO.getDni(), result.getDni(), "DNIs should match");
 
         verify(doctorRepository, times(1)).save(any(Doctor.class));
     }
@@ -168,22 +180,28 @@ class DoctorServiceImplTest {
     @Test
     void saveDoctor_whenRepositoryThrowsException_ThrowsRuntimeException() {
         when(doctorRepository.save(any(Doctor.class))).thenThrow(new RuntimeException("Database error"));
+        when(doctorMapper.toEntity(any(DoctorRequestDTO.class))).thenReturn(any(Doctor.class));
 
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            doctorService.saveDoctor(validDoctorDTO);
-        }, "Should throw RuntimeException when repository fails during save");
-
-        assertEquals("Database error", exception.getMessage(), "Exception message should match");
-        verify(doctorRepository, times(1)).save(any(Doctor.class));
+        assertThrows(RuntimeException.class, () -> doctorService.saveDoctor(validDoctorDTO));
+        verify(doctorRepository, times(0)).save(any(Doctor.class));
     }
 
     // 4. Tests for deleteDoctor(UUID id)
 
     @Test
+    void deletePatient_whenPatientAssociated_thenThrowException() {
+        UUID doctorId = existingDoctor1.getId();
+        when(doctorRepository.existsById(doctorId)).thenReturn(true);
+        doThrow(PatientAssociatedAppointmentsException.class).when(doctorRepository).deleteById(doctorId);
+       assertThrows(PatientAssociatedAppointmentsException.class, () -> doctorService.deleteDoctor(doctorId));
+    }
+
+    @Test
     void deleteDoctor_whenDoctorExists_DeletesDoctor() {
         UUID id = existingDoctor1.getId();
-        doNothing().when(doctorRepository).deleteById(id);
+
         when(doctorRepository.existsById(id)).thenReturn(true);
+        doNothing().when(doctorRepository).deleteById(id);
 
         assertDoesNotThrow(() -> doctorService.deleteDoctor(id), "Deleting existing doctor should not throw exception");
 
@@ -194,7 +212,7 @@ class DoctorServiceImplTest {
     void deleteDoctor_whenDoctorDoesNotExist_thenThrowsException() {
         UUID id = UUID.randomUUID();
         when(doctorRepository.existsById(id)).thenReturn(false);
-        assertThrows(ResourceNotFoundException.class, ()-> doctorService.deleteDoctor(id));
+        assertThrows(DoctorNotFoundException.class, ()-> doctorService.deleteDoctor(id));
 
         verify(doctorRepository, times(0)).deleteById(id);
     }
@@ -217,6 +235,7 @@ class DoctorServiceImplTest {
 
         when(doctorRepository.save(any(Doctor.class))).thenReturn(updatedDoctor);
 
+        when(doctorMapper.toEntity(any(DoctorRequestDTO.class))).thenReturn(updatedDoctor);
         Doctor result = doctorService.updateDoctor(validDoctorDTO, id);
 
         assertEquals(id, result.getId(), "IDs should match");
@@ -224,7 +243,7 @@ class DoctorServiceImplTest {
         assertEquals(validDoctorDTO.getSpecialty(), result.getSpecialty(), "Specialties should match");
         assertEquals(validDoctorDTO.getPhone(), result.getPhone(), "Phones should match");
         assertEquals(validDoctorDTO.getEmail(), result.getEmail(), "Emails should match");
-        assertEquals(validDoctorDTO.getDni(), result.getDNI(), "DNIs should match");
+        assertEquals(validDoctorDTO.getDni(), result.getDni(), "DNIs should match");
 
         verify(doctorRepository, times(1)).save(any(Doctor.class));
     }
@@ -234,7 +253,7 @@ class DoctorServiceImplTest {
         UUID id = UUID.randomUUID();
         when(doctorRepository.existsById(id)).thenReturn(false);
 
-        assertThrows(ResourceNotFoundException.class, ()-> doctorService.updateDoctor(validDoctorDTO, id));
+        assertThrows(DoctorNotFoundException.class, ()-> doctorService.updateDoctor(validDoctorDTO, id));
 
         verify(doctorRepository, times(1)).existsById(id);
         verify(doctorRepository, times(0)).save(any(Doctor.class));

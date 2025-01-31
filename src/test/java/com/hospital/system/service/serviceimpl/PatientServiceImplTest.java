@@ -1,8 +1,12 @@
 package com.hospital.system.service.serviceimpl;
 
 import com.hospital.system.domain.entity.Patient;
+import com.hospital.system.domain.repository.AppointmentRepository;
 import com.hospital.system.domain.repository.PatientRepository;
+import com.hospital.system.exception.PatientAssociatedAppointmentsException;
+import com.hospital.system.exception.PatientNotFoundException;
 import com.hospital.system.exception.ResourceNotFoundException;
+import com.hospital.system.mapper.PatientMapperImpl;
 import com.hospital.system.web.dto.request.PatientRequestDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,14 +25,20 @@ import static org.mockito.Mockito.*;
 class PatientServiceImplTest {
 
     @Mock
-    PatientRepository patientRepository;
+    private PatientMapperImpl patientMapper;
+
+    @Mock
+    private PatientRepository patientRepository;
+
+    @Mock
+    private AppointmentRepository appointmentRepository;
 
     @InjectMocks
     PatientServiceImpl patientService;
 
-    Patient existingPatient1;
-    Patient existingPatient2;
-    PatientRequestDTO validPatientDTO;
+    private Patient existingPatient1;
+    private Patient existingPatient2;
+    private PatientRequestDTO validPatientDTO;
 
     @BeforeEach
     void setUp() {
@@ -107,9 +117,21 @@ class PatientServiceImplTest {
 
     // Delete Tests
     @Test
+    void deletePatient_whenPatientAssociated_thenThrowException() {
+        UUID patientId = existingPatient1.getId();
+        when(patientRepository.existsById(patientId)).thenReturn(true);
+        doThrow(PatientAssociatedAppointmentsException.class).when(patientRepository).deleteById(patientId);
+
+        assertThrows(PatientAssociatedAppointmentsException.class, () -> patientService.deletePatient(patientId));
+    }
+
+
+
+    @Test
     void deletePatient_whenPatientExists_thenReturnPatient() {
         UUID patientId = existingPatient1.getId();
         when(patientRepository.existsById(patientId)).thenReturn(true);
+        doNothing().when(patientRepository).deleteById(patientId);
         assertDoesNotThrow(() -> patientService.deletePatient(patientId));
     }
 
@@ -117,7 +139,7 @@ class PatientServiceImplTest {
     void deletePatient_whenPatientDoesntExist_thenThrowException() {
         UUID patientId = existingPatient1.getId();
         when(patientRepository.existsById(patientId)).thenReturn(false);
-        assertThrows(ResourceNotFoundException.class, () -> patientService.deletePatient(patientId));
+        assertThrows(PatientNotFoundException.class, () -> patientService.deletePatient(patientId));
     }
 
 
@@ -126,6 +148,7 @@ class PatientServiceImplTest {
     void existsById_whenPatientExists_thenDoesNotThrowException() {
         UUID patientId = UUID.randomUUID();
         when(patientRepository.existsById(patientId)).thenReturn(true);
+        doNothing().when(patientRepository).deleteById(patientId);
         assertDoesNotThrow(() -> patientService.deletePatient(patientId));
     }
 
@@ -133,7 +156,7 @@ class PatientServiceImplTest {
     void existsById_whenPatientDoesntExists_thenThrowException() {
         UUID patientId = UUID.randomUUID();
         when(patientRepository.existsById(patientId)).thenReturn(false);
-        assertThrows(ResourceNotFoundException.class, () -> patientService.deletePatient(patientId));
+        assertThrows(PatientNotFoundException.class, () -> patientService.deletePatient(patientId));
     }
 
 
@@ -153,6 +176,8 @@ class PatientServiceImplTest {
         );
 
         when(patientRepository.save(any(Patient.class))).thenReturn(updatedPatient);
+        when(patientMapper.toEntity(any(PatientRequestDTO.class))).thenReturn(updatedPatient);
+
         Patient patient = patientService.updatePatient(validPatientDTO, patientId);
         assertEquals(patient, updatedPatient);
     }
@@ -161,12 +186,25 @@ class PatientServiceImplTest {
     void updatePatient_whenPatientDoesntExist_thenThrowException() {
         UUID patientId = existingPatient1.getId();
         when(patientRepository.existsById(patientId)).thenReturn(false);
-        assertThrows(ResourceNotFoundException.class, () -> patientService.updatePatient(validPatientDTO, patientId));
+        assertThrows(PatientNotFoundException.class, () -> patientService.updatePatient(validPatientDTO, patientId));
     }
 
     @Test
     void createPatient_whenPatientDoesntExists_thenReturnPatient() {
+        UUID patientId = UUID.randomUUID();
         when(patientRepository.save(any(Patient.class))).thenReturn(existingPatient1);
+
+        Patient updatedPatient = new Patient(
+                patientId,
+                validPatientDTO.getName(),
+                validPatientDTO.getAddress(),
+                validPatientDTO.getPhone(),
+                validPatientDTO.getEmail(),
+                validPatientDTO.getDateOfBirth()
+        );
+
+        when(patientMapper.toEntity(any(PatientRequestDTO.class))).thenReturn(updatedPatient);
+
         Patient patient = patientService.createPatient(validPatientDTO);
 
         assertEquals(patient.getName(), validPatientDTO.getName());
@@ -177,7 +215,19 @@ class PatientServiceImplTest {
 
     }
 
+    @Test
     void createPatient_whenPatientExists_thenThrowException() {
+
+        Patient createdPatient = new Patient(
+                UUID.randomUUID(),
+                validPatientDTO.getName(),
+                validPatientDTO.getAddress(),
+                validPatientDTO.getPhone(),
+                validPatientDTO.getEmail(),
+                validPatientDTO.getDateOfBirth()
+        );
+
+        when(patientMapper.toEntity(any(PatientRequestDTO.class))).thenReturn(createdPatient);
         Patient patient = patientService.createPatient(validPatientDTO);
 
         assertEquals(patient.getName(), validPatientDTO.getName());

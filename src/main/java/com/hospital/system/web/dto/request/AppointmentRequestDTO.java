@@ -1,5 +1,7 @@
 package com.hospital.system.web.dto.request;
 
+import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -14,15 +16,18 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AppointmentRequestDTO {
-    @NotNull
+
+    @NotNull(message = "Patient ID is required")
     private UUID patientId;
 
-    @NotNull
+    @NotNull(message = "Doctor ID is required")
     private UUID doctorId;
 
-    @NotNull
+    @NotNull(message = "Date and time are required")
+    @Future(message = "Date must be in the future")
     private LocalDateTime dateTime;
 
-    @NotNull
+    @NotNull(message = "Reasons are required")
+    @NotEmpty(message = "Reasons are required")
     private String reasons;
 }

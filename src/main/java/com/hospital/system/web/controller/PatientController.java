@@ -29,7 +29,7 @@ public class PatientController {
 
 
     @GetMapping
-    public ResponseEntity<List<PatientResponseDTO>> getAllPatients(){
+    public ResponseEntity<List<PatientResponseDTO>> findAll(){
         List<Patient> patients = patientService.findAllPatients();
         List<PatientResponseDTO> responsePatients = patientMapper.toResponseDTOs(patients);
 
@@ -52,14 +52,18 @@ public class PatientController {
     }
 
     @PostMapping("")
-    public ResponseEntity<Patient> addPatient(@RequestBody PatientRequestDTO patientRequestDTO){
+    public ResponseEntity<PatientResponseDTO> addPatient(@RequestBody PatientRequestDTO patientRequestDTO){
         Patient patient = patientService.createPatient(patientRequestDTO);
-        return new ResponseEntity<>(patient, HttpStatus.CREATED);
+        PatientResponseDTO responseDTO = patientMapper.toResponseDTO(patient);
+
+        return new ResponseEntity<>(responseDTO, HttpStatus.CREATED);
     }
 
     @PutMapping("/{patientId}")
-    public ResponseEntity<Patient> updatePatient(@RequestBody PatientRequestDTO patientRequestDTO, @PathVariable UUID patientId){
+    public ResponseEntity<PatientResponseDTO> updatePatient(@RequestBody PatientRequestDTO patientRequestDTO, @PathVariable UUID patientId){
         Patient patient = patientService.updatePatient(patientRequestDTO, patientId);
-        return new ResponseEntity<>(patient, HttpStatus.OK);
+        PatientResponseDTO patientResponseDTO = patientMapper.toResponseDTO(patient);
+
+        return new ResponseEntity<>(patientResponseDTO, HttpStatus.OK);
     }
 }

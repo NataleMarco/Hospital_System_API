@@ -1,9 +1,6 @@
 package com.hospital.system.web.dto.request;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,24 +13,24 @@ import lombok.Setter;
 public class DoctorRequestDTO {
 
     @Size(min = 2, max = 20, message = "Name must be between 2 and 100 characters")
-    @NotNull(message = "Name cannot be null")
-    @NotBlank
+    @NotNull(message = "Name is required")
+    @NotBlank(message = "Name is required")
     private String name;
 
-    @NotBlank
-    @NotNull(message = "Specialty cannot be null")
+    @NotBlank(message = "Specialty is required")
+    @NotNull(message = "Specialty is required")
     private String specialty;
 
-    @NotBlank
-    @NotNull(message = "Phone cannot be null")
+    @NotBlank(message = "Phone is required")
+    @NotNull(message = "Phone is required")
     private String phone;
 
-    @NotBlank
-    @NotNull(message = "Email cannot be null")
+    @NotBlank(message = "Email is required" )
+    @NotNull(message = "Email is required")
     @Email(message = "Email has to be valid")
     private String email;
 
-    @NotBlank
-    @NotNull(message = "DNI cannot be null")
+    @Positive(message = "DNI must be a positive number")
+    @NotNull(message = "DNI is required")
     private Long dni;
 }

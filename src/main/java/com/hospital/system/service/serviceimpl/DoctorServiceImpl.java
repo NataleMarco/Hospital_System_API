@@ -1,13 +1,16 @@
 package com.hospital.system.service.serviceimpl;
 
 import com.hospital.system.domain.entity.Doctor;
+import com.hospital.system.domain.repository.AppointmentRepository;
 import com.hospital.system.domain.repository.DoctorRepository;
-import com.hospital.system.exception.ResourceNotFoundException;
+import com.hospital.system.exception.DoctorAssociatedAppointmentsException;
+import com.hospital.system.exception.DoctorNotFoundException;
 import com.hospital.system.mapper.DoctorMapper;
+import com.hospital.system.service.AppointmentService;
 import com.hospital.system.service.DoctorService;
 import com.hospital.system.web.dto.request.DoctorRequestDTO;
-import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -17,18 +20,20 @@ public class DoctorServiceImpl implements DoctorService {
 
     final DoctorRepository doctorRepository;
     final DoctorMapper doctorMapper;
+    final AppointmentRepository appointmentRepository  ;
 
 
     public DoctorServiceImpl (DoctorRepository doctorRepository,
-                              DoctorMapper doctorMapper) {
+                              DoctorMapper doctorMapper,
+                              AppointmentRepository appointmentRepository1) {
+
         this.doctorRepository = doctorRepository;
         this.doctorMapper = doctorMapper;
+        this.appointmentRepository = appointmentRepository1;
     }
 
-    public String resourceNotFoundMessage(UUID id){
-        return "Doctor with id: " + id + " not found!";
-    }
 
+    @Transactional(readOnly = true)
     @Override
     public List<Doctor> findAllDoctors() {
         return doctorRepository.findAll();
@@ -36,14 +41,16 @@ public class DoctorServiceImpl implements DoctorService {
     }
 
 
+    @Transactional(readOnly = true)
     @Override
-    public Doctor findDoctorById(UUID id) {
-        return doctorRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException(resourceNotFoundMessage(id)));
+    public Doctor findDoctorById(UUID doctorId) {
+        return doctorRepository.findById(doctorId).orElseThrow(() -> new DoctorNotFoundException(doctorId));
     }
 
     @Override
     @Transactional
     public Doctor saveDoctor(DoctorRequestDTO doctorDTO) {
+
         Doctor doctor = doctorMapper.toEntity(doctorDTO);
         return doctorRepository.save(doctor);
     }
@@ -51,8 +58,10 @@ public class DoctorServiceImpl implements DoctorService {
     @Override
     @Transactional
     public void deleteDoctor(UUID id) {
-
         existsDoctorById(id);
+        if (appointmentRepository.existsAppoitmentByDoctorId(id)){
+            throw new DoctorAssociatedAppointmentsException(id);
+        }
         doctorRepository.deleteById(id);
     }
 
@@ -67,9 +76,9 @@ public class DoctorServiceImpl implements DoctorService {
         return doctorRepository.save(updatedDoctor);
     }
 
-    private void existsDoctorById(UUID id) {
-        if (!doctorRepository.existsById(id)) {
-            throw new ResourceNotFoundException(resourceNotFoundMessage(id));
+    private void existsDoctorById(UUID doctorId) {
+        if (!doctorRepository.existsById(doctorId)) {
+            throw new DoctorNotFoundException(doctorId);
         }
     }
 }

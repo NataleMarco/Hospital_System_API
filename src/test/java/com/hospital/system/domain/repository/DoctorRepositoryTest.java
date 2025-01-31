@@ -95,7 +95,7 @@ class DoctorRepositoryTest {
         assertEquals("test",doctorUpdated.get().getSpecialty(),"The specialty of the doctor should be updated");
         assertEquals("123456789",doctorUpdated.get().getPhone(),"The phone number of the doctor should be updated");
         assertEquals("test@test.com",doctorUpdated.get().getEmail(),"The email of the doctor should be updated");
-        assertEquals(123456789L,doctorUpdated.get().getDNI(),"The DNI of the doctor should be updated");
+        assertEquals(123456789L,doctorUpdated.get().getDni(),"The DNI of the doctor should be updated");
     }
 
     @Test

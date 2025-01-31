@@ -2,15 +2,16 @@ package com.hospital.system.mapper;
 
 import com.hospital.system.domain.entity.Doctor;
 import com.hospital.system.web.dto.request.DoctorRequestDTO;
+import com.hospital.system.web.dto.response.DoctorResponseDTO;
 import org.mapstruct.Mapper;
-import org.mapstruct.factory.Mappers;
+
+import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface DoctorMapper {
-    DoctorMapper INSTANCE = Mappers.getMapper(DoctorMapper.class);
 
     Doctor toEntity(DoctorRequestDTO doctorRequestDTO);
-
     DoctorRequestDTO toResponseDTO(Doctor doctor);
+    List<DoctorResponseDTO> toResponseDTOs(List<Doctor> doctors);
 
 }

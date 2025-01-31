@@ -16,13 +16,18 @@ import java.util.UUID;
 @AllArgsConstructor
 public class AppointmentResponseDTO {
 
+    @NotNull
     private UUID appointmentId;
 
+    @NotNull
     private PatientResponseDTO patient;
 
+    @NotNull
     private DoctorResponseDTO doctor;
 
+    @NotNull
     private LocalDateTime dateTime;
 
+    @NotNull
     private String reasons;
 }
